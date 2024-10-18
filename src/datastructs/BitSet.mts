@@ -21,7 +21,7 @@ export class BitSet {
      * @param bitIndex Index of the bit to change.
      * @param value Value to set. Falsy and truthy values correspond to 0 and 1 respectively.
      */
-    set(bitIndex: number, value: number) {
+    set(bitIndex: number, value: number): void {
         const shifted = 1 << bitIndex%8
         const at = Math.floor(bitIndex/8)
         if(value) this.bytes[at] |= shifted
@@ -32,17 +32,17 @@ export class BitSet {
      * Toggles bit in-place at the specified position.
      * @param bitIndex Index of the bit to change.
      */
-    invert(bitIndex: number){
+    invert(bitIndex: number): void {
         this.bytes[Math.floor(bitIndex/8)] ^= 1 << bitIndex%8
     }
 
     /** Returns the amount of bits stored. */
-    length(){
+    length(): number {
         return this.bytes.length*8
     }
 
     /** Yields each bit sequentially. */
-    *[Symbol.iterator]() {
+    *[Symbol.iterator](): Generator<number> {
         for(let i = 0; i < this.length(); i++)
             yield this.get(i)
     }

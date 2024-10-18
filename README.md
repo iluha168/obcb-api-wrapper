@@ -6,6 +6,7 @@ Implements 100% of [the protocol](https://checkbox.ing/proto-docs).
 ```ts
 /**
  * Renders the specified chunk into an image. This example uses Deno.
+ * @module
 */
 import { CHUNK_SIZE_BITS, Client } from "jsr:@iluha168/obcb";
 
