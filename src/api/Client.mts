@@ -27,16 +27,30 @@ export type ClientHandlers = {
     onError?: (client: Client, event: Event) => void
 }
 
+// Cache packets for all instances of clients
+const packetToggle: DataView = new DataView(new ArrayBuffer(5))
+packetToggle.setUint8(0, PacketType.TOGGLE)
+
+const packetChunkRequest: DataView = new DataView(new ArrayBuffer(3))
+packetChunkRequest.setUint8(0, PacketType.CHUNK_REQUEST)
+
+const packetChunkUpdateSubscribe: DataView = new DataView(new ArrayBuffer(3))
+packetChunkUpdateSubscribe.setUint8(0, PacketType.CHUNK_UPDATE_SUBSCRIBE)
+
+const packetChunkUpdateUnsubscribe: DataView = new DataView(new ArrayBuffer(1))
+packetChunkUpdateUnsubscribe.setUint8(0, PacketType.CHUNK_UPDATE_UNSUBSCRIBE)
+
 /**
  * The main class. Implements https://checkbox.ing/proto-docs.
  * @example ```ts
- * const client = new Client({
+ * new Client({
  *      onHello(){
  *          console.log("Connected!")
  *      },
- *      onStats: console.log
- * })
- * client.connect()
+ *      onStats(client, amount){
+ *          console.log(`There are ${amount} of clients connected to the server.`)
+ *      }
+ * }).connect()
  * ```
  */
 export class Client {
@@ -131,10 +145,6 @@ export class Client {
         }
     }
 
-    private static packetToggle: DataView = new DataView(new ArrayBuffer(5))
-    static {
-        Client.packetToggle.setUint8(0, PacketType.TOGGLE)
-    }
     /**
      * Inverts a checkbox.
      * @param i The index of the checkbox relative to the entire bitmap.
@@ -142,8 +152,8 @@ export class Client {
     toggleGlobalCheckbox(i: number){
         if(!Number.isInteger(i) || i < 0 || i > BITMAP_SIZE_BITS)
             throw new RangeError(`Provided checkbox index ${i} is outside of the bitmap range`)
-        Client.packetToggle.setUint32(1, i, true)
-        this.ws!.send(Client.packetToggle)
+        packetToggle.setUint32(1, i, true)
+        this.ws!.send(packetToggle)
         // Ideally there should be a check for this.chunk.invert
         // but that would harm performance for no gain in most of the cases this method could be useful
     }
@@ -158,15 +168,11 @@ export class Client {
             throw new TypeError("No chunk specified")
         if(!Number.isInteger(i) || i < 0 || i > CHUNK_SIZE_BITS)
             throw new RangeError(`Provided checkbox index ${i} is outside of the chunk range`)
-        Client.packetToggle.setUint32(1, i + chunkIndex*CHUNK_SIZE_BITS, true)
-        this.ws!.send(Client.packetToggle)
+        packetToggle.setUint32(1, i + chunkIndex*CHUNK_SIZE_BITS, true)
+        this.ws!.send(packetToggle)
         this.chunk.invert(i)
     }
 
-    private static packetChunkRequest: DataView = new DataView(new ArrayBuffer(3))
-    static {
-        Client.packetChunkRequest.setUint8(0, PacketType.CHUNK_REQUEST)
-    }
     /**
      * Asks server for all checkboxes in a chunk. The `onChunkUpdateFull` handler is called to process checkboxes.
      * @param chunkIndex Index of the chunk to request.
@@ -174,14 +180,10 @@ export class Client {
     chunkRequest(chunkIndex: number){
         if(!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > CHUNK_COUNT)
             throw new RangeError(`Provided chunk index ${chunkIndex} is outside of the bitmap range`)
-        Client.packetChunkRequest.setUint16(1, chunkIndex, true)
-        this.ws!.send(Client.packetChunkRequest)
+        packetChunkRequest.setUint16(1, chunkIndex, true)
+        this.ws!.send(packetChunkRequest)
     }
 
-    private static packetChunkUpdateSubscribe: DataView = new DataView(new ArrayBuffer(3))
-    static {
-        this.packetChunkUpdateSubscribe.setUint8(0, PacketType.CHUNK_UPDATE_SUBSCRIBE)
-    }
     /**
      * Subscribe to partial updates of a chunk. This keeps `chunk` up-to-date.
      * You can use the `onChunkUpdatePartial` handler for additional logic.
@@ -190,22 +192,17 @@ export class Client {
     chunkSubscribe(chunkIndex: number){
         if(!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > CHUNK_COUNT)
             throw new RangeError(`Provided chunk index ${chunkIndex} is outside of the bitmat range`)
-        Client.packetChunkUpdateSubscribe.setUint16(1, chunkIndex, true)
-        this.ws!.send(Client.packetChunkUpdateSubscribe)
+        packetChunkUpdateSubscribe.setUint16(1, chunkIndex, true)
+        this.ws!.send(packetChunkUpdateSubscribe)
         this.chunkIndex = chunkIndex
     }
 
-    private static packetChunkUpdateUnsubscribe: DataView = new DataView(new ArrayBuffer(1))
-    static {
-        // I do realise that this is unnecessary, but I future-proof
-        Client.packetChunkUpdateUnsubscribe.setUint8(0, PacketType.CHUNK_UPDATE_UNSUBSCRIBE)
-    }
     /**
      * Unsubscribe from partial updates of a chunk. Does not change the state of `chunk`.
      * @param chunkIndex Index of the chunk to unsubscribe from.
      */
     chunkUnsubscribe(){
-        this.ws!.send(Client.packetChunkUpdateUnsubscribe)
+        this.ws!.send(packetChunkUpdateUnsubscribe)
         this.chunkIndex = undefined
     }
 }
