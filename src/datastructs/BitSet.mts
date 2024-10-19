@@ -2,6 +2,7 @@
  * Utility class that can set individual bits of a byte array.
  */
 export class BitSet {
+    /** Underlying storage for bits. It is safe to mutate this externally. */
     bytes: Uint8Array
 
     constructor(bytes: ArrayBufferLike){

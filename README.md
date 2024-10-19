@@ -43,3 +43,7 @@ new Client({
     }
 }).connect()
 ```
+
+## Compatibility
+Depends on [WebSocket from WebAPI](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) in the global scope.
+Every runtime that satisfies this requirement can use this library. It is possible to polyfill WebSocket in before calling `Client.prototype.connect`.

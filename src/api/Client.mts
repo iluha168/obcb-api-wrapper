@@ -77,9 +77,17 @@ export class Client {
     }
 
     private async onWsMessage({data}: MessageEvent){
-        if(!(data instanceof Blob))
-            return this.logStringError("Expected a Blob from the server")
-
+        if(!(data instanceof Blob)){
+            // Attempt to convert to a Blob
+            try {
+                data = new Blob([data])
+            } catch(err) {
+                if(err instanceof TypeError)
+                    return this.logStringError("Expected a binary message from the server")
+                else throw err // This should never throw
+            }
+        }
+            
         const buffer = new ByteBuffer(await data.arrayBuffer())
         const packetID = buffer.readUint8() as PacketType | number
         
