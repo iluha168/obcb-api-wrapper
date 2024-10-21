@@ -1,4 +1,4 @@
-import { BitSet } from "../datastructs/BitSet.mts";
+import { BitSet } from "jsr:@iluha168/bitset@1.0.0";
 import { ByteBuffer } from "../datastructs/ByteBuffer.mts";
 import { PacketType, CHUNK_SIZE_BITS, CHUNK_SIZE_BYTES, UPDATE_CHUNK_SIZE, BITMAP_SIZE_BITS, CHUNK_COUNT } from "./constants.mts";
 
