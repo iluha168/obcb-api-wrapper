@@ -1,4 +1,4 @@
-/** A bot that disables all checkboxes in a chunk
+/** A bot that disables all checkboxes in a chunk and quits
  * @module
  */
 import { Client } from "jsr:@iluha168/obcb";
@@ -12,21 +12,19 @@ new Client({
     // You can safely call API methods past this point
     onHello(client) {
         client.chunkRequest(CHUNK_INDEX)
-        client.chunkSubscribe(CHUNK_INDEX)
     },
 
     // Called when a chunk has been received
-    onChunkUpdateFull(client, chunkIndex, checkboxes) {
+    onChunkUpdateFull(chunk) {
         // Iterate over received checkboxes
-        for(const [i, checkbox] of checkboxes.entries()){
+        for(const [i, checkbox] of chunk.boxes.entries()){
             // If the checkbox is on, disable it
-            if(checkbox)
-                client.toggleChunkCheckbox(i, chunkIndex)
+            if(checkbox) chunk.toggle(i)
         }
-        console.log("Chunk", chunkIndex, "is turned off")
+        console.log("Chunk", chunk.index, "is now off")
         // Close the WebSocket once we are done
         // This should automatically stop this script
-        client.disconnect()
+        chunk.client.disconnect()
     },
 })
 // Don't forget to connect!

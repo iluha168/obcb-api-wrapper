@@ -1,4 +1,4 @@
-/** Assuming ffmpeg installed, this script creates obcb.png - a square render of the entire bitmap.
+/** Assuming ffmpeg installed in PATH, this script creates obcb.png - a square render of the entire bitmap.
  * @module
  */
 import { BITMAP_SIZE_BITS, CHUNK_COUNT, CHUNK_SIZE_BITS, Client } from "jsr:@iluha168/obcb";
@@ -34,12 +34,12 @@ new Client({
             client.chunkRequest(i)
     },
 
-    async onChunkUpdateFull(client, chunkIndex, boxes) {
-        console.log("Received", chunkIndex)
-        await ffmpegIn.write(boxes.bytes)
+    async onChunkUpdateFull(chunk) {
+        console.log("Received", chunk.index)
+        await ffmpegIn.write(chunk.boxes.bytes)
 
-        if(chunkIndex === CHUNK_COUNT-1){
-            client.disconnect()
+        if(chunk.index === CHUNK_COUNT-1){
+            chunk.client.disconnect()
             await ffmpegIn.close()
             ffmpegIn.releaseLock()
         }

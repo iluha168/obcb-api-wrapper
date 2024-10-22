@@ -13,13 +13,13 @@ new Client({
     },
 
     // Callback for chunkRequest
-    onChunkUpdateFull(client, _, boxes){
+    onChunkUpdateFull(chunk){
         // This is how many checkboxes are in a row on the website
         const COLUMNS = 60
         // Calculates how many rows there are
         const ROWS = Math.floor(CHUNK_SIZE_BITS/COLUMNS)
         // Releases the WebSocket, so that the script will finish after it renders the chunk
-        client.disconnect()
+        chunk.client.disconnect()
 
         using f = Deno.openSync("chunk.ppm", {
             write: true,
@@ -34,7 +34,7 @@ new Client({
         const pixelOn  = new Uint8Array([200, 255, 200]) // greenish
         const pixelOff = new Uint8Array([  0,   0,   0]) // black
 
-        for(const checkbox of boxes)
+        for(const checkbox of chunk.boxes)
             f.writeSync(checkbox? pixelOn : pixelOff)
     }
 }).connect()

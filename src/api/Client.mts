@@ -1,6 +1,7 @@
 import { BitSet } from "jsr:@iluha168/bitset@1.1.0";
 import { ByteBuffer } from "../datastructs/ByteBuffer.mts";
-import { PacketType, CHUNK_SIZE_BITS, CHUNK_SIZE_BYTES, UPDATE_CHUNK_SIZE, BITMAP_SIZE_BITS, CHUNK_COUNT } from "./constants.mts";
+import { PacketType, CHUNK_SIZE_BYTES, UPDATE_CHUNK_SIZE, assertIndexInBitmap, assertChunkInBitmap } from "./constants.mts";
+import { ClientChunk } from "./ClientChunk.mts";
 
 export type ClientHandlers = {
     /** "The server sends a hello message to the client when the connection is established." */
@@ -9,11 +10,8 @@ export type ClientHandlers = {
     onStats?: (client: Client, clientsAmount: number, /*...*/) => void
     /** Response to a full chunk request. */
     onChunkUpdateFull?: (
-        client: Client,
-        /** Which chunk was retrieved. */
-        chunkIndex: number,
-        /** The state of all checkboxes in the chunk. */
-        checkboxes: BitSet
+        /** The chunk that was retrieved. */
+        chunk: ClientChunk,
     ) => void
     /** "The server periodically sends partial updates of the subscribed chunk to the client." */
     onChunkUpdatePartial?: (
@@ -56,14 +54,16 @@ packetChunkUpdateUnsubscribe.setUint8(0, PacketType.CHUNK_UPDATE_UNSUBSCRIBE)
 export class Client {
     private ws?: WebSocket
 
-    /** The current chunk. Each bit is a checkbox.
-     * @example client.chunk.get(42) // gets state of the 42th checkbox in the subscribed chunk
+    /**
+     * Chunk the client is subscribed to, if any.
+     * @example client.chunk?.boxes.get(42) // gets state of the 42th checkbox in the subscribed chunk
      */
-    chunk: BitSet = new BitSet(new ArrayBuffer(CHUNK_SIZE_BYTES))
-    /** The index of the currently subscribed to chunk. */
-    chunkIndex?: number
+    chunk?: ClientChunk
 
-    /** Callbacks for various server events. */
+    /**
+     * Callbacks for various server events.
+     * You can safely mutate this at any point.
+     */
     handlers: ClientHandlers
 
     constructor(handlers: ClientHandlers = {}){
@@ -73,7 +73,7 @@ export class Client {
     /** Initializes the WebSocket connection. This is necessary to do before issuing any API calls.
      * @param url WebSocket address of the server.
      */
-    connect(url = "wss://bitmap-ws.alula.me/"){
+    connect(url = "wss://bitmap-ws.alula.me/"): void {
         this.ws = new WebSocket(url)
         this.ws.onclose = this.ws.onerror = 
             e => this.handlers.onError?.(this, e)
@@ -81,16 +81,16 @@ export class Client {
     }
 
     /** Closes the WebSocket connection. */
-    disconnect(){
+    disconnect(): void {
         this.ws?.close()
         this.ws = undefined
     }
 
-    private logStringError(err: string){
+    private logStringError(err: string): void {
         this.handlers.onError?.(this, new Event(err))
     }
 
-    private async onWsMessage({data}: MessageEvent){
+    private async onWsMessage({data}: MessageEvent): Promise<void> {
         if(!(data instanceof Blob)){
             // Attempt to convert to a Blob
             try {
@@ -121,17 +121,17 @@ export class Client {
             break
             case PacketType.CHUNK_UPDATE_FULL: {
                 const chunkIndex = buffer.readUint16()
-                const chunk = buffer.readUint8Array(CHUNK_SIZE_BYTES)
-                if(chunkIndex === this.chunkIndex)
-                    this.chunk.bytes = chunk
-                this.handlers.onChunkUpdateFull?.(this, chunkIndex, new BitSet(chunk))
+                const checkboxes = buffer.readUint8Array(CHUNK_SIZE_BYTES)
+                if(chunkIndex === this.chunk?.index)
+                    this.chunk.boxes.bytes = checkboxes
+                this.handlers.onChunkUpdateFull?.(new ClientChunk(this, chunkIndex, new BitSet(checkboxes)))
             } break
             case PacketType.CHUNK_UPDATE_PARTIAL: {
-                if(this.chunkIndex === undefined)
+                if(!this.chunk)
                     return this.logStringError("The server has sent a chunk update while the Client is not subscribed")
-                const offset = buffer.readUint32() - this.chunkIndex*CHUNK_SIZE_BYTES
+                const offset = this.chunk.toLocalIndex(buffer.readUint32())
                 const newBytes = buffer.readUint8Array(UPDATE_CHUNK_SIZE)
-                this.chunk.bytes.set(newBytes, offset)
+                this.chunk.boxes.bytes.set(newBytes, offset)
                 this.handlers.onChunkUpdatePartial?.(this, new BitSet(newBytes), offset*8)
             }
             break
@@ -149,38 +149,18 @@ export class Client {
      * Inverts a checkbox.
      * @param i The index of the checkbox relative to the entire bitmap.
      */
-    toggleGlobalCheckbox(i: number){
-        if(!Number.isInteger(i) || i < 0 || i > BITMAP_SIZE_BITS)
-            throw new RangeError(`Provided checkbox index ${i} is outside of the bitmap range`)
+    toggle(i: number): void {
+        assertIndexInBitmap(i)
         packetToggle.setUint32(1, i, true)
         this.ws!.send(packetToggle)
-        // Ideally there should be a check for this.chunk.invert
-        // but that would harm performance for no gain in most of the cases this method could be useful
-    }
-
-    /**
-     * Inverts a checkbox.
-     * @param i The index of the checkbox relative to the beginning of the chunk.
-     * @param chunkIndex The index of the chunk to use as a reference. Defaults to the subscribed chunk.
-     */
-    toggleChunkCheckbox(i: number, chunkIndex = this.chunkIndex){
-        if(chunkIndex === undefined)
-            throw new TypeError("No chunk specified")
-        if(!Number.isInteger(i) || i < 0 || i > CHUNK_SIZE_BITS)
-            throw new RangeError(`Provided checkbox index ${i} is outside of the chunk range`)
-        packetToggle.setUint32(1, i + chunkIndex*CHUNK_SIZE_BITS, true)
-        this.ws!.send(packetToggle)
-        if(chunkIndex == this.chunkIndex)
-            this.chunk.invert(i)
     }
 
     /**
      * Asks server for all checkboxes in a chunk. The `onChunkUpdateFull` handler is called to process checkboxes.
      * @param chunkIndex Index of the chunk to request.
      */
-    chunkRequest(chunkIndex: number){
-        if(!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > CHUNK_COUNT)
-            throw new RangeError(`Provided chunk index ${chunkIndex} is outside of the bitmap range`)
+    chunkRequest(chunkIndex: number): void {
+        assertChunkInBitmap(chunkIndex)
         packetChunkRequest.setUint16(1, chunkIndex, true)
         this.ws!.send(packetChunkRequest)
     }
@@ -190,20 +170,19 @@ export class Client {
      * You can use the `onChunkUpdatePartial` handler for additional logic.
      * @param chunkIndex Index of the chunk to subscribe to.
      */
-    chunkSubscribe(chunkIndex: number){
-        if(!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > CHUNK_COUNT)
-            throw new RangeError(`Provided chunk index ${chunkIndex} is outside of the bitmat range`)
+    chunkSubscribe(chunkIndex: number): void {
+        assertChunkInBitmap(chunkIndex)
         packetChunkUpdateSubscribe.setUint16(1, chunkIndex, true)
         this.ws!.send(packetChunkUpdateSubscribe)
-        this.chunkIndex = chunkIndex
+        this.chunk = new ClientChunk(this, chunkIndex)
     }
 
     /**
      * Unsubscribe from partial updates of a chunk. Does not change the state of `chunk`.
      * @param chunkIndex Index of the chunk to unsubscribe from.
      */
-    chunkUnsubscribe(){
+    chunkUnsubscribe(): void {
         this.ws!.send(packetChunkUpdateUnsubscribe)
-        this.chunkIndex = undefined
+        this.chunk = undefined
     }
 }

@@ -27,3 +27,30 @@ export enum PacketType {
     CHUNK_UPDATE_SUBSCRIBE = 0x14,
     CHUNK_UPDATE_UNSUBSCRIBE = 0x15,
 }
+
+/**
+ * Throws RangeError if specified global checkbox index is invalid.
+ * @param i Index of the checkbox relative to the entire bitmap.
+ */
+export function assertIndexInBitmap(i: number){
+    if(!Number.isInteger(i) || i < 0 || i > BITMAP_SIZE_BITS)
+        throw new RangeError(`Provided checkbox index ${i} is outside of the bitmap range`)
+}
+
+/**
+ * Throws RangeError if specified checkbox index relative to a chunk is invalid.
+ * @param i Index of the checkbox relative its chunk.
+ */
+export function assertIndexInChunk(i: number){
+    if(!Number.isInteger(i) || i < 0 || i > CHUNK_SIZE_BITS)
+        throw new RangeError(`Provided checkbox index ${i} is outside of the chunk range`)
+}
+
+/**
+ * Throws RangeError if specified chunk index is invalid.
+ * @param i Index of the chunk relative to the bitmap.
+ */
+export function assertChunkInBitmap(i: number){
+    if(!Number.isInteger(i) || i < 0 || i > CHUNK_COUNT)
+        throw new RangeError(`Provided chunk index ${i} is outside of the bitmap range`)
+}
