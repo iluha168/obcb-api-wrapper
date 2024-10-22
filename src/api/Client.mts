@@ -1,4 +1,4 @@
-import { BitSet } from "jsr:@iluha168/bitset@1.0.0";
+import { BitSet } from "jsr:@iluha168/bitset@1.1.0";
 import { ByteBuffer } from "../datastructs/ByteBuffer.mts";
 import { PacketType, CHUNK_SIZE_BITS, CHUNK_SIZE_BYTES, UPDATE_CHUNK_SIZE, BITMAP_SIZE_BITS, CHUNK_COUNT } from "./constants.mts";
 
@@ -170,7 +170,8 @@ export class Client {
             throw new RangeError(`Provided checkbox index ${i} is outside of the chunk range`)
         packetToggle.setUint32(1, i + chunkIndex*CHUNK_SIZE_BITS, true)
         this.ws!.send(packetToggle)
-        this.chunk.invert(i)
+        if(chunkIndex == this.chunkIndex)
+            this.chunk.invert(i)
     }
 
     /**

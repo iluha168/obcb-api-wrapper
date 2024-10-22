@@ -1,7 +1,7 @@
 /** Assuming ffmpeg installed, this script creates obcb.png - a square render of the entire bitmap.
  * @module
  */
-import { BITMAP_SIZE_BITS, CHUNK_COUNT, CHUNK_SIZE_BITS, Client } from "../src/mod.mts";
+import { BITMAP_SIZE_BITS, CHUNK_COUNT, CHUNK_SIZE_BITS, Client } from "jsr:@iluha168/obcb";
 
 const BITMAP_IMG_SIDE = Math.sqrt(BITMAP_SIZE_BITS)
 const W = BITMAP_IMG_SIDE

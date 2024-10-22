@@ -2,11 +2,9 @@
  * Renders the specified chunk into an image. This example uses Deno.
  * @module
 */
-import { CHUNK_SIZE_BITS, Client } from "../src/mod.mts";
+import { CHUNK_SIZE_BITS, Client } from "jsr:@iluha168/obcb";
 
 const CHUNK_INDEX = 0
-const COLUMNS = 60
-const ROWS = Math.floor(CHUNK_SIZE_BITS/COLUMNS)
 
 new Client({
     onHello(client) {
@@ -16,6 +14,10 @@ new Client({
 
     // Callback for chunkRequest
     onChunkUpdateFull(client, _, boxes){
+        // This is how many checkboxes are in a row on the website
+        const COLUMNS = 60
+        // Calculates how many rows there are
+        const ROWS = Math.floor(CHUNK_SIZE_BITS/COLUMNS)
         // Releases the WebSocket, so that the script will finish after it renders the chunk
         client.disconnect()
 
