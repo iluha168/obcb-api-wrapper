@@ -1,12 +1,15 @@
 /** Assuming ffmpeg installed in PATH, this script creates obcb.png - a square render of the entire bitmap.
+ * S*S checkboxes = 1 pixel.
+ * Much faster than the unscaled example script.
  * @module
  */
 import { BITMAP_SIZE_BITS, CHUNK_COUNT, CHUNK_SIZE_BITS, Client } from "jsr:@iluha168/obcb";
 
 const BITMAP_IMG_SIDE = Math.sqrt(BITMAP_SIZE_BITS)
+/** Downscale factor */
+const S = 4
 const W = BITMAP_IMG_SIDE
 const H = CHUNK_SIZE_BITS/BITMAP_IMG_SIDE
-const S = 4
 
 const ffmpegResize = new Deno.Command("ffmpeg", {
     args: `-f rawvideo -pix_fmt monob -video_size ${W}x${H} -i - -s ${W/S}x${H/S} -sws_flags neighbor -f rawvideo -pix_fmt monob -`.split(" "),
