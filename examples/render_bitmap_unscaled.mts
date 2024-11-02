@@ -3,16 +3,17 @@
  * Compresses PNG on a single thread, much slower than the downscaled example script.
  * @module
  */
-import { BITMAP_SIZE_BITS, CHUNK_COUNT, Client } from "jsr:@iluha168/obcb";
+import { BITMAP_SIZE_BITS, BITMAP_SIZE_BYTES, CHUNK_COUNT, CHUNK_SIZE_BYTES, Client } from "jsr:@iluha168/obcb";
 import * as PNG from "https://deno.land/x/pngs@0.1.1/mod.ts";
+import { LSBtoMSBmap } from "./shared/bit_order.mts";
 
 const BITMAP_IMG_SIDE = Math.sqrt(BITMAP_SIZE_BITS)
-const bitmap: Uint8Array[] = []
+const bitmap = new Uint8Array(BITMAP_SIZE_BYTES)
 
-async function finish() {
+function finish() {
     console.log("Compressing PNG...")
     const png =  PNG.encode(
-        await new Blob(bitmap).bytes(),
+        bitmap,
         BITMAP_IMG_SIDE, BITMAP_IMG_SIDE,
         {
             color: PNG.ColorType.Grayscale,
@@ -35,7 +36,10 @@ new Client({
 
     onChunkUpdateFull(chunk) {
         console.log("Received", chunk.index)
-        bitmap.push(chunk.boxes.bytes)
+        bitmap.set(
+            chunk.boxes.bytes.map(byte => LSBtoMSBmap[byte]),
+            chunk.index*CHUNK_SIZE_BYTES
+        )
 
         if(chunk.index === CHUNK_COUNT-1){
             chunk.client.disconnect()

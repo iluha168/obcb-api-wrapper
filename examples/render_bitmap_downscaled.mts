@@ -4,6 +4,7 @@
  * @module
  */
 import { BITMAP_SIZE_BITS, CHUNK_COUNT, CHUNK_SIZE_BITS, Client } from "jsr:@iluha168/obcb";
+import { LSBtoMSBmap } from "./shared/bit_order.mts";
 
 const BITMAP_IMG_SIDE = Math.sqrt(BITMAP_SIZE_BITS)
 /** Downscale factor */
@@ -39,7 +40,7 @@ new Client({
 
     async onChunkUpdateFull(chunk) {
         console.log("Received", chunk.index)
-        await ffmpegIn.write(chunk.boxes.bytes)
+        await ffmpegIn.write(chunk.boxes.bytes.map(byte => LSBtoMSBmap[byte]))
 
         if(chunk.index === CHUNK_COUNT-1){
             chunk.client.disconnect()
