@@ -61,4 +61,4 @@ Every runtime that satisfies this requirement can use this library. It is possib
 [ci-url]: https://github.com/iluha168/obcb-api-wrapper/actions/workflows/publish.yml
 
 [license-badge]: https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square
-[license-url]: https://wei.mit-license.org
+[license-url]: /LICENSE
